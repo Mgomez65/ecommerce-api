@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Product;
 
 use App\Models\Product;
+use App\Models\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
@@ -20,6 +21,15 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         $data = $request->validated();
 
         $product = Product::create([
@@ -49,6 +59,15 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, string $id)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         $data = $request->validated();
 
         $product = Product::findOrFail($id);
@@ -63,6 +82,15 @@ class ProductController extends Controller
 
     public function destroy(string $id)
     {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         $product = Product::findOrFail($id);
 
         $product->delete();

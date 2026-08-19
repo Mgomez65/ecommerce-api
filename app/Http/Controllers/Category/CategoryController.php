@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Category;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\User;
 use App\Http\Requests\Category\StoreCategoryRequest;
 use App\Http\Requests\Category\UpdateCategoryRequest;
 
@@ -22,6 +23,15 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         $data = $request->validated();
 
         $category = Category::create([
@@ -46,6 +56,15 @@ class CategoryController extends Controller
 
     public function update(UpdateCategoryRequest $request, string $id)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         $data = $request->validated();
 
         $category = Category::findOrFail($id);
@@ -63,6 +82,15 @@ class CategoryController extends Controller
 
     public function destroy(string $id)
     {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if ($user->role !== User::ROLE_ADMIN) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         $category = Category::findOrFail($id);
         $category->delete();
 

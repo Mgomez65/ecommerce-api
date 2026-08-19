@@ -15,6 +15,15 @@ class UserController extends Controller
 
     public function index()
     {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if ($user->role !== User::ROLE_ADMIN) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         return response()->json([
             'users' => User::all()
         ]);
@@ -24,11 +33,20 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request)
     {
+        $auth = auth()->user();
+        if (!$auth) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if ($auth->role !== User::ROLE_ADMIN) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
 
         $user = User::create([
             'name'=>$request->name,
             'email'=>$request->email,
-            'password'=>Hash::make($request->password)
+            'password'=>Hash::make($request->password),
+            'role' => $request->input('role', User::ROLE_CLIENTE),
         ]);
 
 
@@ -43,6 +61,15 @@ class UserController extends Controller
 
     public function show(User $user)
     {
+        $auth = auth()->user();
+        if (!$auth) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if ($auth->role !== User::ROLE_ADMIN) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
+
         return response()->json([
             'user'=>$user
         ]);
@@ -54,6 +81,14 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user)
     {
+        $auth = auth()->user();
+        if (!$auth) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if ($auth->role !== User::ROLE_ADMIN) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
 
         $data = $request->validated();
 
@@ -79,6 +114,14 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $auth = auth()->user();
+        if (!$auth) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+
+        if ($auth->role !== User::ROLE_ADMIN) {
+            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
+        }
 
         $user->delete();
 
