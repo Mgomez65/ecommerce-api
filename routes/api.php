@@ -1,43 +1,65 @@
 <?php
 
+
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Users\UserController;
 use App\Http\Controllers\Category\CategoryController;
 use App\Http\Controllers\Product\ProductController;
 use App\Http\Controllers\Product\ProductImageController;
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Cart\CartController;
+use App\Http\Controllers\Cart\CartItemController;
 
-
-// Auth endpoints
+// Auth
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-Route::get('/auth/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+Route::post('/auth/logout', [AuthController::class, 'logout'])
+    ->middleware('auth:sanctum');
+Route::get('/auth/me', [AuthController::class, 'me'])
+    ->middleware('auth:sanctum');
 
-// Public product and category read routes
-Route::get('products', [ProductController::class, 'index']);
-Route::get('products/{product}', [ProductController::class, 'show']);
+// Rutas públicas
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{product}', [ProductController::class, 'show']);
 
-Route::get('categories', [CategoryController::class, 'index']);
-Route::get('categories/{category}', [CategoryController::class, 'show']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/categories/{category}', [CategoryController::class, 'show']);
 
-// Protected routes - require authentication; controllers enforce role-level permissions
+// Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
-    // Products (create/update/delete)
-    Route::post('products', [ProductController::class, 'store']);
-    Route::put('products/{product}', [ProductController::class, 'update']);
-    Route::patch('products/{product}', [ProductController::class, 'update']);
-    Route::delete('products/{product}', [ProductController::class, 'destroy']);
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{product}', [ProductController::class, 'update']);
+    Route::patch('/products/{product}', [ProductController::class, 'update']);
+    Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
-    // Product images
-    Route::post('/products/{product}/images', [ProductImageController::class, 'store']);
+    Route::post(
+        '/products/{product}/images',
+        [ProductImageController::class, 'store']
+    );
 
-    // Categories (create/update/delete)
-    Route::post('categories', [CategoryController::class, 'store']);
-    Route::put('categories/{category}', [CategoryController::class, 'update']);
-    Route::patch('categories/{category}', [CategoryController::class, 'update']);
-    Route::delete('categories/{category}', [CategoryController::class, 'destroy']);
+    Route::post('/categories', [CategoryController::class, 'store']);
+    Route::put('/categories/{category}', [CategoryController::class, 'update']);
+    Route::patch('/categories/{category}', [CategoryController::class, 'update']);
+    Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
 
-    // Users - admin-only (controller enforces admin)
-    Route::apiResource('users', UserController::class);
+    Route::apiResource('/users', UserController::class);
+
+    // Carrito
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [CartController::class, 'index']);
+        Route::post('/items', [CartController::class, 'store']);
+
+        Route::patch('/items/{cartItem}', [
+            CartItemController::class,
+            'update',
+        ]);
+
+        Route::delete('/items/{cartItem}', [
+            CartItemController::class,
+            'destroy',
+        ]);
+
+        Route::delete('/', [CartController::class, 'clear']);
+        Route::post('/checkout', [CartController::class, 'checkout']);
+    });
 });
