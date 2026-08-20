@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Orders;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
+use App\Models\Orders;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -29,7 +29,7 @@ class OrderController extends Controller
      */
     public function show(Request $request, int $id)
     {
-        $order = Order::with('items.product')->findOrFail($id);
+        $order = Orders::with('items.product')->findOrFail($id);
 
         // Ensure the authenticated user owns the order
         abort_unless($order->user_id === $request->user()->id, 403);

@@ -8,7 +8,7 @@ use App\Http\Requests\Cart\AddCartItemRequest;
 use App\Http\Requests\Cart\UpdateCartItemRequest;
 use App\Models\CartItem;
 use App\Models\Product;
-use App\Models\Order;
+use App\Models\Orders;
 use App\Models\OrderItem;
 use App\Models\StockMovement;
 use Illuminate\Http\JsonResponse;
@@ -140,9 +140,9 @@ class CartController extends Controller
 
         DB::transaction(function () use ($cart, $user, &$order) {
             // Create the order record
-            $order = Order::create([
+            $order = Orders::create([
                 'user_id' => $user->id,
-                'status' => Order::STATUS_PENDING,
+                'status' => Orders::STATUS_PENDING,
                 'total' => 0,
             ]);
 

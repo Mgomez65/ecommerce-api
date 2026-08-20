@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Models\Order;
+use App\Models\Orders;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
