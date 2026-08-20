@@ -15,6 +15,11 @@ class StoreProductRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        \Log::info('PRODUCT REQUEST', $this->all());
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
