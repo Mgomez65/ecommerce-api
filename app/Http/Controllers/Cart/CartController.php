@@ -8,6 +8,9 @@ use App\Http\Requests\Cart\AddCartItemRequest;
 use App\Http\Requests\Cart\UpdateCartItemRequest;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\StockMovement;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -120,7 +123,9 @@ class CartController extends Controller
 
     public function checkout(Request $request): JsonResponse
     {
-        $cart = $request->user()
+        $user = $request->user();
+
+        $cart = $user
             ->cart()
             ->with('items.product')
             ->firstOrFail();
@@ -131,23 +136,67 @@ class CartController extends Controller
             ], 422);
         }
 
-        DB::transaction(function () use ($cart) {
+        $order = null;
+
+        DB::transaction(function () use ($cart, $user, &$order) {
+            // Create the order record
+            $order = Order::create([
+                'user_id' => $user->id,
+                'status' => Order::STATUS_PENDING,
+                'total' => 0,
+            ]);
+
+            $total = 0;
+
             foreach ($cart->items as $item) {
                 $product = Product::lockForUpdate()
                     ->findOrFail($item->product_id);
 
+                // Validate active
+                if (! $product->active) {
+                    abort(422, "El producto {$product->name} no está disponible.");
+                }
+
+                // Validate stock
                 if ($item->quantity > $product->stock) {
                     abort(422, "Stock insuficiente para {$product->name}.");
                 }
 
+                $unitPrice = $product->price;
+                $subtotal = round($unitPrice * $item->quantity, 2);
+
+                // Create order item with the current unit price
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $unitPrice,
+                ]);
+
+                // Decrement product stock
                 $product->decrement('stock', $item->quantity);
+
+                // Register stock movement (salida)
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'quantity' => $item->quantity,
+                    'movement_type' => 'salida',
+                    'motivo' => "Venta orden #{$order->id}",
+                ]);
+
+                $total += $subtotal;
             }
 
+            // Update order total
+            $order->update(['total' => $total]);
+
+            // Clear cart
             $cart->items()->delete();
         });
 
         return response()->json([
             'message' => 'Compra realizada correctamente.',
-        ]);
+            'order' => $order->load('items.product'),
+        ], 201);
     }
 }

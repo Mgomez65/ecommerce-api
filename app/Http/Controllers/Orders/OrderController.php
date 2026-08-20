@@ -3,66 +3,40 @@
 namespace App\Http\Controllers\Orders;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource (orders for the authenticated user).
      */
-    public function index()
+    public function index(Request $request)
     {
-        $orders = Orders::all();
-        return response()->json([
-            'orders' => $orders
-        ]);
-    }
+        $orders = $request->user()
+            ->orders()
+            ->with('items.product')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $order = Orders::create($request->all());
         return response()->json([
-            'message' => 'Pedido creado correctamente',
-            'order' => $order
-        ], 201);
+            'orders' => $orders,
+        ]);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, int $id)
     {
-        $order = Orders::findOrFail($id);
-        return response()->json([
-            'order' => $order
-        ]);
-    }
+        $order = Order::with('items.product')->findOrFail($id);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        $order = Orders::findOrFail($id);
-        $order->update($request->all());
-        return response()->json([
-            'message' => 'Pedido actualizado correctamente',
-            'order' => $order
-        ]);
-    }
+        // Ensure the authenticated user owns the order
+        abort_unless($order->user_id === $request->user()->id, 403);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        $order = Orders::findOrFail($id);
-        $order->delete();
         return response()->json([
-            'message' => 'Pedido eliminado correctamente'
+            'order' => $order,
         ]);
     }
 }
+

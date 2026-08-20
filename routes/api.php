@@ -9,6 +9,7 @@ use App\Http\Controllers\Product\ProductController;
 use App\Http\Controllers\Product\ProductImageController;
 use App\Http\Controllers\Cart\CartController;
 use App\Http\Controllers\Cart\CartItemController;
+use App\Http\Controllers\Orders\OrderController;
 
 // Auth
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -61,5 +62,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::delete('/', [CartController::class, 'clear']);
         Route::post('/checkout', [CartController::class, 'checkout']);
+    });
+
+    // Orders
+    Route::prefix('orders')->group(function () {
+        Route::get('/', [OrderController::class, 'index']);
+        Route::get('/{id}', [OrderController::class, 'show']);
     });
 });
