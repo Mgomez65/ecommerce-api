@@ -5,14 +5,41 @@ namespace App\Http\Controllers\Product;
 use App\Models\Product;
 use App\Models\User;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Product\IndexProductRequest;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(IndexProductRequest $request)
     {
-        $products = Product::with('category', 'images')->get();
+        $filters = $request->validated();
+
+        $products = Product::query()
+            ->with('category', 'images')
+            ->when(
+                $filters['search'] ?? null,
+                fn ($query, $search) => $query->where('name', 'like', '%' . $search . '%')
+            )
+            ->when(
+                $filters['category_id'] ?? null,
+                fn ($query, $categoryId) => $query->where('category_id', $categoryId)
+            )
+            ->when(
+                $filters['min_price'] ?? null,
+                fn ($query, $minPrice) => $query->where('price', '>=', $minPrice)
+            )
+            ->when(
+                $filters['max_price'] ?? null,
+                fn ($query, $maxPrice) => $query->where('price', '<=', $maxPrice)
+            )
+            ->when(
+                array_key_exists('active', $filters),
+                fn ($query) => $query->where('active', $request->boolean('active'))
+            )
+            ->orderBy('id')
+            ->paginate($filters['per_page'] ?? 15)
+            ->withQueryString();
 
         return response()->json([
             'products' => $products
