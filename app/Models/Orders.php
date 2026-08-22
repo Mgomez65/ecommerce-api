@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Orders extends Model
 {
@@ -27,5 +28,20 @@ class Orders extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class, 'order_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'order_id');
+    }
+
+    public function latestPayment()
+    {
+        return $this->hasOne(Payment::class, 'order_id')->latestOfMany();
+    }
+
+    public function shippingAddress(): HasOne
+    {
+        return $this->hasOne(OrderShippingAddress::class, 'order_id');
     }
 }

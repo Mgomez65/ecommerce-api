@@ -9,14 +9,40 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class CartCheckoutTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function validShippingAddress(): array
+    {
+        return [
+            'shipping_address' => [
+                'recipient_name' => 'Juan Pérez',
+                'phone' => '+54 9 11 1234-5678',
+                'address' => 'Av. Siempre Viva',
+                'number' => '742',
+                'city' => 'Springfield',
+                'state' => 'Buenos Aires',
+                'postal_code' => '1000',
+                'notes' => 'Tocar timbre 2B',
+            ],
+        ];
+    }
+
     public function test_checkout_successful()
     {
+        config(['services.mercadopago.access_token' => 'TEST-ACCESS-TOKEN']);
+        Http::fake([
+            'api.mercadopago.com/checkout/preferences' => Http::response([
+                'id' => 'pref-123',
+                'init_point' => 'https://mercadopago.com/checkout/pref-123',
+                'sandbox_init_point' => 'https://sandbox.mercadopago.com/checkout/pref-123',
+            ], 201),
+        ]);
+
         $user = User::factory()->create();
 
         // Ensure category exists
@@ -42,13 +68,22 @@ class CartCheckoutTest extends TestCase
 
         $response->assertStatus(201);
 
-        // Checkout
-        $checkout = $this->postJson('/api/cart/checkout');
+        // Checkout: creates a pending order and a Mercado Pago preference.
+        // Stock is intentionally NOT decremented yet — that only happens
+        // once the payment webhook confirms the payment as approved.
+        $checkout = $this->postJson('/api/cart/checkout', $this->validShippingAddress());
         $checkout->assertStatus(201);
-        $checkout->assertJsonStructure(['message', 'order']);
+        $checkout->assertJsonStructure(['message', 'order', 'payment' => ['checkout_url', 'preference_id']]);
+
+        $this->assertDatabaseHas('order_shipping_addresses', [
+            'order_id' => $checkout->json('order.id'),
+            'recipient_name' => 'Juan Pérez',
+            'city' => 'Springfield',
+        ]);
 
         $this->assertDatabaseHas('orders', [
             'user_id' => $user->id,
+            'status' => Orders::STATUS_PENDING,
         ]);
 
         $this->assertDatabaseHas('order_items', [
@@ -58,7 +93,13 @@ class CartCheckoutTest extends TestCase
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
-            'stock' => 3,
+            'stock' => 5,
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $checkout->json('order.id'),
+            'status' => 'pending',
+            'preference_id' => 'pref-123',
         ]);
     }
 
@@ -97,6 +138,6 @@ class CartCheckoutTest extends TestCase
         $item = $cart->items()->where('product_id', $product->id)->first();
         $item->update(['quantity' => 2]);
 
-        $this->postJson('/api/cart/checkout')->assertStatus(422);
+        $this->postJson('/api/cart/checkout', $this->validShippingAddress())->assertStatus(422);
     }
 }

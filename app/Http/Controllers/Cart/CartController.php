@@ -5,18 +5,24 @@ namespace App\Http\Controllers\Cart;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Cart\AddCartItemRequest;
-use App\Http\Requests\Cart\UpdateCartItemRequest;
+use App\Http\Requests\Cart\CheckoutRequest;
 use App\Models\CartItem;
 use App\Models\Product;
 use App\Models\Orders;
 use App\Models\OrderItem;
-use App\Models\StockMovement;
+use App\Models\OrderShippingAddress;
+use App\Services\MercadoPago\MercadoPagoCheckoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CartController extends Controller
 {
+    public function __construct(
+        private readonly MercadoPagoCheckoutService $mercadoPagoCheckout
+    ) {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $cart = $request->user()->cart()->firstOrCreate([]);
@@ -66,48 +72,6 @@ class CartController extends Controller
         ], 201);
     }
 
-    public function update(
-        UpdateCartItemRequest $request,
-        CartItem $cartItem
-    ): JsonResponse {
-        abort_unless(
-            $cartItem->cart?->user_id === $request->user()->id,
-            403
-        );
-
-        $quantity = $request->validated()['quantity'];
-        $cartItem->load('product');
-
-        if ($quantity > $cartItem->product->stock) {
-            return response()->json([
-                'message' => 'La cantidad supera el stock disponible.',
-            ], 422);
-        }
-
-        $cartItem->update(['quantity' => $quantity]);
-
-        return response()->json([
-            'message' => 'Cantidad actualizada.',
-            'item' => $cartItem->fresh('product'),
-        ]);
-    }
-
-    public function destroy(
-        Request $request,
-        CartItem $cartItem
-    ): JsonResponse {
-        abort_unless(
-            $cartItem->cart?->user_id === $request->user()->id,
-            403
-        );
-
-        $cartItem->delete();
-
-        return response()->json([
-            'message' => 'Producto eliminado del carrito.',
-        ]);
-    }
-
     public function clear(Request $request): JsonResponse
     {
         $cart = $request->user()->cart()->first();
@@ -121,9 +85,16 @@ class CartController extends Controller
         ]);
     }
 
-    public function checkout(Request $request): JsonResponse
+    /**
+     * Turn the cart into a pending order and generate a Mercado Pago
+     * checkout preference. Stock is NOT decremented here — it's only
+     * decremented once the payment webhook confirms the payment as
+     * approved (see MercadoPagoWebhookController).
+     */
+    public function checkout(CheckoutRequest $request): JsonResponse
     {
         $user = $request->user();
+        $shippingAddress = $request->validated()['shipping_address'];
 
         $cart = $user
             ->cart()
@@ -138,13 +109,19 @@ class CartController extends Controller
 
         $order = null;
 
-        DB::transaction(function () use ($cart, $user, &$order) {
-            // Create the order record
+        DB::transaction(function () use ($cart, $user, $shippingAddress, &$order) {
             $order = Orders::create([
                 'user_id' => $user->id,
                 'status' => Orders::STATUS_PENDING,
                 'total' => 0,
             ]);
+
+            // Snapshot of the delivery data as entered for THIS order — never
+            // updated afterward, so later changes to the user's own data
+            // (or a future address book) can't rewrite order history.
+            OrderShippingAddress::create(array_merge($shippingAddress, [
+                'order_id' => $order->id,
+            ]));
 
             $total = 0;
 
@@ -152,20 +129,16 @@ class CartController extends Controller
                 $product = Product::lockForUpdate()
                     ->findOrFail($item->product_id);
 
-                // Validate active
                 if (! $product->active) {
                     abort(422, "El producto {$product->name} no está disponible.");
                 }
 
-                // Validate stock
                 if ($item->quantity > $product->stock) {
                     abort(422, "Stock insuficiente para {$product->name}.");
                 }
 
                 $unitPrice = $product->price;
-                $subtotal = round($unitPrice * $item->quantity, 2);
 
-                // Create order item with the current unit price
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
@@ -173,30 +146,29 @@ class CartController extends Controller
                     'unit_price' => $unitPrice,
                 ]);
 
-                // Decrement product stock
-                $product->decrement('stock', $item->quantity);
-
-                // Register stock movement (salida)
-                StockMovement::create([
-                    'product_id' => $product->id,
-                    'quantity' => $item->quantity,
-                    'movement_type' => 'salida',
-                    'motivo' => "Venta orden #{$order->id}",
-                ]);
-
-                $total += $subtotal;
+                $total += round($unitPrice * $item->quantity, 2);
             }
 
-            // Update order total
             $order->update(['total' => $total]);
 
-            // Clear cart
             $cart->items()->delete();
         });
 
+        try {
+            $preference = $this->mercadoPagoCheckout->createPreferenceForOrder($order);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'El pedido se creó pero no se pudo generar el link de pago. Podés reintentar desde POST /api/orders/{id}/pay.',
+                'order' => $order->load('items.product', 'shippingAddress'),
+            ], 502);
+        }
+
         return response()->json([
-            'message' => 'Compra realizada correctamente.',
-            'order' => $order->load('items.product'),
+            'message' => 'Pedido creado. Redirigí al cliente a checkout_url para completar el pago.',
+            'order' => $order->load('items.product', 'shippingAddress'),
+            'payment' => $preference,
         ], 201);
     }
 }

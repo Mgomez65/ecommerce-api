@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'mercadopago' => [
+        'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
+        'public_key' => env('MERCADOPAGO_PUBLIC_KEY'),
+        'webhook_secret' => env('MERCADOPAGO_WEBHOOK_SECRET'),
+        'currency' => env('MERCADOPAGO_CURRENCY', 'ARS'),
+        'sandbox' => env('MERCADOPAGO_SANDBOX', true),
+        'notification_url' => env('MERCADOPAGO_NOTIFICATION_URL'),
+        'success_url' => env('MERCADOPAGO_SUCCESS_URL'),
+        'failure_url' => env('MERCADOPAGO_FAILURE_URL'),
+        'pending_url' => env('MERCADOPAGO_PENDING_URL'),
+    ],
+
 ];
