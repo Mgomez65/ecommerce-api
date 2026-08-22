@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\Category;
 use App\Models\User;
 use App\Models\Product;
 use Laravel\Sanctum\Sanctum;
@@ -73,29 +74,33 @@ class AuthRolesTest extends TestCase
 
     public function test_client_can_view_products_but_cannot_create()
     {
+        $category = Category::create(['name' => 'Cat ' . uniqid()]);
+
         // create a product
-        $product = Product::create(['name'=>'P1','description'=>'x','price'=>10,'stock'=>5,'stock_minimo'=>1,'category_id'=>null,'active'=>true]);
+        $product = Product::create(['name'=>'P1','description'=>'x','price'=>10,'stock'=>5,'stock_minimo'=>1,'category_id'=>$category->id,'active'=>true]);
 
         $client = User::create(['name'=>'Client','email'=>'c@example.com','password'=>bcrypt('password123'),'role'=>User::ROLE_CLIENTE]);
         Sanctum::actingAs($client);
 
         $this->getJson('/api/products')->assertStatus(200);
 
-        $create = $this->postJson('/api/products', ['name'=>'New','price'=>5,'stock'=>1,'stock_minimo'=>1,'category_id'=>null,'active'=>true]);
+        $create = $this->postJson('/api/products', ['name'=>'New','price'=>5,'stock'=>1,'stock_minimo'=>1,'category_id'=>$category->id,'active'=>true]);
         $create->assertStatus(403);
     }
 
     public function test_vendedor_can_create_and_update_product()
     {
+        $category = Category::create(['name' => 'Cat ' . uniqid()]);
+
         $vendedor = User::create(['name'=>'Seller','email'=>'s@example.com','password'=>bcrypt('password123'),'role'=>User::ROLE_VENDEDOR]);
         Sanctum::actingAs($vendedor);
 
-        $create = $this->postJson('/api/products', ['name'=>'New','price'=>5,'stock'=>1,'stock_minimo'=>1,'category_id'=>null,'active'=>true]);
+        $create = $this->postJson('/api/products', ['name'=>'New','price'=>5,'stock'=>1,'stock_minimo'=>1,'category_id'=>$category->id,'active'=>true]);
         $create->assertStatus(201);
 
         $productId = $create->json('product.id');
 
-        $update = $this->putJson("/api/products/{$productId}", ['name'=>'Updated','price'=>6,'stock'=>2,'stock_minimo'=>1,'category_id'=>null,'active'=>true]);
+        $update = $this->putJson("/api/products/{$productId}", ['name'=>'Updated','price'=>6,'stock'=>2,'stock_minimo'=>1,'category_id'=>$category->id,'active'=>true]);
         $update->assertStatus(200);
     }
 
