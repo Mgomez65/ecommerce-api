@@ -6,4 +6,107 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-brand-50: oklch(97.9% 0.021 166.113);
+    --color-brand-100: oklch(95% 0.052 163.051);
+    --color-brand-200: oklch(90.5% 0.093 164.15);
+    --color-brand-300: oklch(84.5% 0.143 164.978);
+    --color-brand-400: oklch(76.5% 0.177 163.223);
+    --color-brand-500: oklch(69.6% 0.17 162.48);
+    --color-brand-600: oklch(59.6% 0.145 163.225);
+    --color-brand-700: oklch(50.8% 0.118 165.612);
+    --color-brand-800: oklch(43.2% 0.095 166.913);
+    --color-brand-900: oklch(37.8% 0.077 168.94);
+}
+
+@utility btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold
+        transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2;
+}
+
+@utility alert {
+    @apply flex items-start gap-3 rounded-lg p-4 text-sm;
+}
+
+@layer components {
+    /* Buttons */
+    .btn-primary {
+        @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:outline-brand-600;
+    }
+    .btn-secondary {
+        @apply btn bg-white text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50
+            focus-visible:outline-slate-600;
+    }
+    .btn-danger {
+        @apply btn bg-white text-red-600 shadow-sm ring-1 ring-inset ring-red-300 hover:bg-red-50
+            focus-visible:outline-red-600;
+    }
+    .btn-ghost {
+        @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+    }
+    .btn-block {
+        @apply w-full;
+    }
+    .btn-sm {
+        @apply px-3 py-1.5 text-xs;
+    }
+
+    /* Forms */
+    .field-label {
+        @apply mb-1.5 block text-sm font-medium text-slate-700;
+    }
+    .field-input {
+        @apply block w-full rounded-lg border-0 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm ring-1
+            ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-600
+            disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500;
+    }
+    .field-error {
+        @apply mt-1.5 text-sm text-red-600;
+    }
+    .field-hint {
+        @apply mt-1.5 text-sm text-slate-500;
+    }
+
+    /* Cards & surfaces */
+    .surface {
+        @apply rounded-xl bg-white shadow-sm ring-1 ring-slate-200;
+    }
+
+    /* Badges */
+    .badge {
+        @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium;
+    }
+
+    /* Skeleton loading */
+    .skeleton {
+        @apply animate-pulse rounded-lg bg-slate-200;
+    }
+
+    /* Alerts */
+    .alert-error {
+        @apply alert bg-red-50 text-red-700 ring-1 ring-inset ring-red-200;
+    }
+    .alert-info {
+        @apply alert bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200;
+    }
+    .alert-success {
+        @apply alert bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200;
+    }
+
+    /* Container */
+    .page-container {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-0.5rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
