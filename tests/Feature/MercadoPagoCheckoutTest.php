@@ -8,8 +8,10 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Notifications\OrderConfirmed;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -158,6 +160,24 @@ class MercadoPagoCheckoutTest extends TestCase
             'status' => Payment::STATUS_APPROVED,
         ]);
         $this->assertSame(1, StockMovement::where('product_id', $product->id)->count());
+    }
+
+    public function test_approved_webhook_sends_order_confirmed_email()
+    {
+        Notification::fake();
+
+        [$user, $product, $order] = $this->checkout();
+
+        $this->fakePaymentLookup('approved', $order->id);
+
+        $this->postJson('/api/payments/mercadopago/webhook?type=payment&data.id=555666')
+            ->assertStatus(200);
+
+        Notification::assertSentTo(
+            $user,
+            OrderConfirmed::class,
+            fn ($notification) => $notification->toMail($user)->subject === "Confirmamos tu pedido #{$order->id}"
+        );
     }
 
     public function test_duplicate_webhook_delivery_does_not_double_decrement_stock()

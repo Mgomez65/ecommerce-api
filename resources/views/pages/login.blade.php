@@ -17,7 +17,10 @@
                     <p class="field-error hidden" data-error-for="email"></p>
                 </div>
                 <div>
-                    <label for="password" class="field-label">Contraseña</label>
+                    <div class="flex items-center justify-between">
+                        <label for="password" class="field-label">Contraseña</label>
+                        <a href="/olvide-password" class="mb-1.5 text-xs font-medium text-brand-600 hover:text-brand-700">¿Olvidaste tu contraseña?</a>
+                    </div>
                     <input type="password" id="password" name="password" required autocomplete="current-password" class="field-input">
                     <p class="field-error hidden" data-error-for="password"></p>
                 </div>

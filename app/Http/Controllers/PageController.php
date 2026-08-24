@@ -52,6 +52,16 @@ class PageController extends Controller
         return view('pages.register', ['page' => 'register']);
     }
 
+    public function forgotPassword()
+    {
+        return view('pages.forgot-password', ['page' => 'forgot-password']);
+    }
+
+    public function resetPassword()
+    {
+        return view('pages.reset-password', ['page' => 'reset-password']);
+    }
+
     public function orders()
     {
         return view('pages.orders', ['page' => 'orders']);

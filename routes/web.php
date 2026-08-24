@@ -12,6 +12,8 @@ Route::get('/carrito', [PageController::class, 'cart'])->name('cart');
 Route::get('/checkout', [PageController::class, 'checkout'])->name('checkout');
 Route::get('/login', [PageController::class, 'login'])->name('login');
 Route::get('/registro', [PageController::class, 'register'])->name('register');
+Route::get('/olvide-password', [PageController::class, 'forgotPassword'])->name('password.forgot');
+Route::get('/resetear-password', [PageController::class, 'resetPassword'])->name('password.reset');
 Route::get('/mis-pedidos', [PageController::class, 'orders'])->name('orders.index');
 Route::get('/mis-pedidos/{id}', [PageController::class, 'orderShow'])->name('orders.show');
 

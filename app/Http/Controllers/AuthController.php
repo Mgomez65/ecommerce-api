@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\ForgotPasswordRequest;
+use App\Http\Requests\ResetPasswordRequest;
 
 class AuthController extends Controller
 {
@@ -72,5 +75,38 @@ class AuthController extends Controller
         $user = $request->user();
 
         return response()->json(['user' => $user]);
+    }
+
+    public function forgotPassword(ForgotPasswordRequest $request)
+    {
+        Password::sendResetLink($request->only('email'));
+
+        // Always a generic response, whether or not the email exists, so
+        // this endpoint can't be used to enumerate registered accounts.
+        return response()->json([
+            'message' => 'Si el email está registrado, te enviamos un link para restablecer tu contraseña.',
+        ]);
+    }
+
+    public function resetPassword(ResetPasswordRequest $request)
+    {
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                ])->save();
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'El link de recuperación es inválido o expiró.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Contraseña actualizada correctamente.',
+        ]);
     }
 }

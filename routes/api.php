@@ -14,8 +14,12 @@ use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Payments\MercadoPagoWebhookController;
 
 // Auth
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+});
 Route::post('/auth/logout', [AuthController::class, 'logout'])
     ->middleware('auth:sanctum');
 Route::get('/auth/me', [AuthController::class, 'me'])
@@ -29,7 +33,7 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}', [CategoryController::class, 'show']);
 
 // Mercado Pago (llamado por Mercado Pago, sin auth de la app)
-Route::prefix('payments/mercadopago')->group(function () {
+Route::prefix('payments/mercadopago')->middleware('throttle:webhooks')->group(function () {
     Route::post('/webhook', [MercadoPagoWebhookController::class, 'handle']);
     Route::get('/return', [MercadoPagoWebhookController::class, 'return']);
 });

@@ -7,6 +7,7 @@ use App\Models\Orders;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Notifications\OrderConfirmed;
 use App\Services\MercadoPago\MercadoPagoClient;
 use App\Services\MercadoPago\WebhookSignatureValidator;
 use Illuminate\Http\JsonResponse;
@@ -97,8 +98,10 @@ class MercadoPagoWebhookController extends Controller
             return response()->json(['message' => 'Referencia de orden inválida.'], 200);
         }
 
+        $confirmedOrder = null;
+
         try {
-            DB::transaction(function () use ($payment, $dataId, $orderId) {
+            DB::transaction(function () use ($payment, $dataId, $orderId, &$confirmedOrder) {
                 $order = Orders::with('items')->lockForUpdate()->findOrFail($orderId);
 
                 // A Payment row already exists from checkout (created when the
@@ -129,6 +132,7 @@ class MercadoPagoWebhookController extends Controller
                 if ($paymentRecord->status === Payment::STATUS_APPROVED
                     && $order->status === Orders::STATUS_PENDING) {
                     $this->confirmOrderAndDecrementStock($order);
+                    $confirmedOrder = $order;
                 } elseif (in_array($paymentRecord->status, [Payment::STATUS_REJECTED, Payment::STATUS_CANCELLED], true)
                     && $order->status === Orders::STATUS_PENDING) {
                     $order->update(['status' => Orders::STATUS_CANCELLED]);
@@ -147,7 +151,28 @@ class MercadoPagoWebhookController extends Controller
             return response()->json(['message' => 'No se pudo procesar la notificación.'], 200);
         }
 
+        if ($confirmedOrder) {
+            $this->notifyOrderConfirmed($confirmedOrder);
+        }
+
         return response()->json(['message' => 'Procesado.'], 200);
+    }
+
+    /**
+     * Best-effort: a failed email must never turn an already-processed
+     * payment into a webhook error (Mercado Pago would just retry it).
+     */
+    private function notifyOrderConfirmed(Orders $order): void
+    {
+        try {
+            $order->loadMissing('user');
+            $order->user?->notify(new OrderConfirmed($order));
+        } catch (Throwable $e) {
+            Log::error('No se pudo enviar el email de confirmación de pedido', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
