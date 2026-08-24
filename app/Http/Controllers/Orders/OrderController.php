@@ -7,7 +7,6 @@ use App\Http\Requests\Orders\UpdateOrderRequest;
 use App\Models\Orders;
 use App\Models\Product;
 use App\Models\StockMovement;
-use App\Models\User;
 use App\Services\MercadoPago\MercadoPagoCheckoutService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +26,10 @@ class OrderController extends Controller
     {
         $user = $request->user();
 
-        $query = $this->isStaff($user)
+        // Reuses the "updateStatus" ability as the staff check: in this
+        // app, only staff manage orders across users, so it doubles as
+        // "should this listing include everyone's orders".
+        $query = $user->can('updateStatus', Orders::class)
             ? Orders::query()
             : $user->orders();
 
@@ -61,10 +63,7 @@ class OrderController extends Controller
     {
         $order = Orders::with('items.product', 'latestPayment', 'shippingAddress')->findOrFail($id);
 
-        abort_unless(
-            $this->isStaff($request->user()) || $order->user_id === $request->user()->id,
-            403
-        );
+        $this->authorize('view', $order);
 
         return response()->json([
             'order' => $order,
@@ -80,7 +79,7 @@ class OrderController extends Controller
     {
         $order = Orders::findOrFail($id);
 
-        abort_unless($order->user_id === $request->user()->id, 403);
+        $this->authorize('pay', $order);
 
         if ($order->status !== Orders::STATUS_PENDING) {
             return response()->json([
@@ -111,7 +110,7 @@ class OrderController extends Controller
     {
         $order = Orders::with('items')->findOrFail($id);
 
-        abort_unless($order->user_id === $request->user()->id, 403);
+        $this->authorize('cancel', $order);
 
         if ($order->status !== Orders::STATUS_PENDING) {
             return response()->json([
@@ -135,9 +134,7 @@ class OrderController extends Controller
      */
     public function updateStatus(UpdateOrderRequest $request, int $id)
     {
-        if (!$this->isStaff($request->user())) {
-            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
-        }
+        $this->authorize('updateStatus', Orders::class);
 
         $order = Orders::with('items')->findOrFail($id);
 
@@ -180,11 +177,6 @@ class OrderController extends Controller
                 'motivo' => "Cancelación orden #{$order->id}",
             ]);
         }
-    }
-
-    private function isStaff(User $user): bool
-    {
-        return in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR], true);
     }
 
     private function validStatuses(): array

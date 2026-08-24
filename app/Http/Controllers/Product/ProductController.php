@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Product;
 
 use App\Models\Product;
-use App\Models\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Product\IndexProductRequest;
 use App\Http\Requests\Product\StoreProductRequest;
@@ -48,14 +47,7 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'No autenticado'], 401);
-        }
-
-        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
-            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
-        }
+        $this->authorize('create', Product::class);
 
         $data = $request->validated();
 
@@ -86,18 +78,11 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, string $id)
     {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'No autenticado'], 401);
-        }
+        $product = Product::findOrFail($id);
 
-        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
-            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
-        }
+        $this->authorize('update', $product);
 
         $data = $request->validated();
-
-        $product = Product::findOrFail($id);
 
         $product->update($data);
 
@@ -109,16 +94,9 @@ class ProductController extends Controller
 
     public function destroy(string $id)
     {
-        $user = auth()->user();
-        if (!$user) {
-            return response()->json(['message' => 'No autenticado'], 401);
-        }
-
-        if (!in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR])) {
-            return response()->json(['message' => 'No tienes permisos para realizar esta acción.'], 403);
-        }
-
         $product = Product::findOrFail($id);
+
+        $this->authorize('delete', $product);
 
         $product->delete();
 

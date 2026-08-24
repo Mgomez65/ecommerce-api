@@ -17,7 +17,7 @@ class DashboardController extends Controller
      */
     public function summary(Request $request)
     {
-        $this->authorizeStaff($request);
+        $this->authorize('viewDashboard');
 
         return response()->json([
             'orders_by_status' => Orders::query()
@@ -37,7 +37,7 @@ class DashboardController extends Controller
      */
     public function lowStock(Request $request)
     {
-        $this->authorizeStaff($request);
+        $this->authorize('viewDashboard');
 
         $products = Product::with('category')
             ->whereColumn('stock', '<=', 'stock_minimo')
@@ -52,7 +52,7 @@ class DashboardController extends Controller
      */
     public function recentOrders(Request $request)
     {
-        $this->authorizeStaff($request);
+        $this->authorize('viewDashboard');
 
         $limit = min((int) $request->query('limit', 10), 50);
 
@@ -69,7 +69,7 @@ class DashboardController extends Controller
      */
     public function topProducts(Request $request)
     {
-        $this->authorizeStaff($request);
+        $this->authorize('viewDashboard');
 
         $limit = min((int) $request->query('limit', 10), 50);
 
@@ -84,16 +84,5 @@ class DashboardController extends Controller
             ->get();
 
         return response()->json(['products' => $products]);
-    }
-
-    private function authorizeStaff(Request $request): void
-    {
-        $user = $request->user();
-
-        abort_unless(
-            $user && in_array($user->role, [User::ROLE_ADMIN, User::ROLE_VENDEDOR], true),
-            403,
-            'No tienes permisos para realizar esta acción.'
-        );
     }
 }
